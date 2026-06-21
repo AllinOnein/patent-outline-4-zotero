@@ -369,6 +369,7 @@ MVP
 本项目基于以下开源项目：
 
 * [Zotero Plugin Template](https://github.com/windingwind/zotero-plugin-template?utm_source=chatgpt.com)
+* [LLM-for-zotero](https://github.com/yilewang/llm-for-zotero)
 * [MinerU](https://github.com/opendatalab/MinerU?utm_source=chatgpt.com)
 * [pdf-lib](https://github.com/Hopding/pdf-lib?utm_source=chatgpt.com)
 
