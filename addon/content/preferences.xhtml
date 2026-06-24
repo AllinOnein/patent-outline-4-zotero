@@ -1,0 +1,76 @@
+<linkset>
+  <html:link rel="localization" href="__addonRef__-preferences.ftl" />
+</linkset>
+
+<!-- AI Settings -->
+<groupbox
+  onload="Zotero.__addonInstance__.hooks.onPrefsEvent('load', { window })">
+  <label><html:h2 data-l10n-id="pref-title"></html:h2></label>
+  <vbox>
+    <label><html:h3 data-l10n-id="pref-ai-title"></html:h3></label>
+    <hbox align="center">
+      <html:label for="zotero-prefpane-__addonRef__-ai-baseUrl" data-l10n-id="pref-ai-baseurl" style="min-width: 120px;"></html:label>
+      <html:input type="text" id="zotero-prefpane-__addonRef__-ai-baseUrl" preference="ai.baseUrl" style="flex: 1; min-width: 300px;" />
+    </hbox>
+    <hbox align="center">
+      <html:label for="zotero-prefpane-__addonRef__-ai-apiKey" data-l10n-id="pref-ai-apikey" style="min-width: 120px;"></html:label>
+      <html:input type="password" id="zotero-prefpane-__addonRef__-ai-apiKey" preference="ai.apiKey" style="flex: 1; min-width: 300px;" />
+    </hbox>
+    <hbox align="center">
+      <html:label for="zotero-prefpane-__addonRef__-ai-model" data-l10n-id="pref-ai-model" style="min-width: 120px;"></html:label>
+      <html:input type="text" id="zotero-prefpane-__addonRef__-ai-model" preference="ai.model" style="flex: 1; min-width: 300px;" />
+    </hbox>
+    <hbox align="center" style="margin-top: 8px;">
+      <html:button id="zotero-prefpane-__addonRef__-ai-test" data-l10n-id="pref-ai-test" style="min-width: 120px;"></html:button>
+      <html:label id="zotero-prefpane-__addonRef__-ai-test-result" style="margin-left: 12px;"></html:label>
+    </hbox>
+  </vbox>
+</groupbox>
+
+<!-- Outline Settings -->
+<groupbox style="margin-top: 16px;">
+  <label><html:h3 data-l10n-id="pref-outline-title"></html:h3></label>
+  <vbox>
+    <hbox align="center">
+      <html:input type="checkbox" id="zotero-prefpane-__addonRef__-outline-preview" preference="outline.preview" />
+      <html:label for="zotero-prefpane-__addonRef__-outline-preview" data-l10n-id="pref-outline-preview" style="margin-left: 6px;"></html:label>
+    </hbox>
+    <hbox align="center">
+      <html:input type="checkbox" id="zotero-prefpane-__addonRef__-outline-backup" preference="outline.backup" />
+      <html:label for="zotero-prefpane-__addonRef__-outline-backup" data-l10n-id="pref-outline-backup" style="margin-left: 6px;"></html:label>
+    </hbox>
+    <hbox align="center">
+      <html:input type="checkbox" id="zotero-prefpane-__addonRef__-outline-debug" preference="outline.debug" />
+      <html:label for="zotero-prefpane-__addonRef__-outline-debug" data-l10n-id="pref-outline-debug" style="margin-left: 6px;"></html:label>
+    </hbox>
+  </vbox>
+</groupbox>
+
+<!-- Generation Mode -->
+<groupbox style="margin-top: 16px;">
+  <label><html:h3 data-l10n-id="pref-mode-title"></html:h3></label>
+  <vbox id="zotero-prefpane-__addonRef__-mode-group">
+    <hbox align="center">
+      <html:input type="radio" name="mode" value="smart" id="zotero-prefpane-__addonRef__-mode-smart" />
+      <html:label for="zotero-prefpane-__addonRef__-mode-smart" data-l10n-id="pref-mode-smart" style="font-weight: bold; margin-left: 6px;"></html:label>
+    </hbox>
+    <html:p data-l10n-id="pref-mode-smart-desc" style="margin-left: 28px; margin-top: 2px; margin-bottom: 8px; color: #666; font-size: 0.9em;"></html:p>
+    <hbox align="center">
+      <html:input type="radio" name="mode" value="enhanced" id="zotero-prefpane-__addonRef__-mode-enhanced" />
+      <html:label for="zotero-prefpane-__addonRef__-mode-enhanced" data-l10n-id="pref-mode-enhanced" style="font-weight: bold; margin-left: 6px;"></html:label>
+    </hbox>
+    <html:p data-l10n-id="pref-mode-enhanced-desc" style="margin-left: 28px; margin-top: 2px; margin-bottom: 8px; color: #666; font-size: 0.9em;"></html:p>
+    <hbox align="center">
+      <html:input type="radio" name="mode" value="only" id="zotero-prefpane-__addonRef__-mode-only" />
+      <html:label for="zotero-prefpane-__addonRef__-mode-only" data-l10n-id="pref-mode-only" style="font-weight: bold; margin-left: 6px;"></html:label>
+    </hbox>
+    <html:p data-l10n-id="pref-mode-only-desc" style="margin-left: 28px; margin-top: 2px; margin-bottom: 8px; color: #666; font-size: 0.9em;"></html:p>
+  </vbox>
+</groupbox>
+
+<vbox style="margin-top: 16px;">
+  <html:label
+    data-l10n-id="pref-help"
+    data-l10n-args='{"time": "__buildTime__","name": "__addonName__","version":"__buildVersion__"}'
+  ></html:label>
+</vbox>
