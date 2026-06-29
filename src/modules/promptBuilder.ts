@@ -24,7 +24,8 @@ const SYSTEM_PROMPT = `你是一名专利文档结构分析专家。
 - 优先提高召回率（宁可多留，不可遗漏）
 - 不允许修改页码（page字段必须从原文复制）
 - level: 1=一级标题, 2=二级标题, 3=三级标题, 4=四级标题
-- 不允许输出任何解释文字`;
+- 不允许输出任何解释文字
+- 如果原文为中文，title保留中文；如果原文为其他语言（日文、韩文、德文等），title翻译成中文`;
 
 export function buildOutlinePrompt(
   contentItems: ContentItem[],
