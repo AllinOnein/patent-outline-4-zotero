@@ -4,6 +4,7 @@ pref-ai-baseurl = API 地址
 pref-ai-apikey = API 密钥
 pref-ai-model = 模型名称
 pref-ai-test = 测试连接
+pref-ai-disable-thinking = 关闭模型思考（更快、更省 token；DashScope 等支持时生效）
 pref-outline-title = 大纲设置
 pref-outline-preview = 写入前预览
 pref-outline-backup = 自动备份原始PDF

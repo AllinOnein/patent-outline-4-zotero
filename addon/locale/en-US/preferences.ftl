@@ -4,6 +4,7 @@ pref-ai-baseurl = API Base URL
 pref-ai-apikey = API Key
 pref-ai-model = Model
 pref-ai-test = Test Connection
+pref-ai-disable-thinking = Disable model thinking (faster, fewer tokens; DashScope only)
 pref-outline-title = Outline Settings
 pref-outline-preview = Preview before writing
 pref-outline-backup = Auto backup original PDF

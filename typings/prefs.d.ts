@@ -10,6 +10,9 @@ declare namespace _ZoteroTypes {
       "ai.baseUrl": string;
       "ai.apiKey": string;
       "ai.model": string;
+      "ai.disableThinking": boolean;
+      "ai.maxTokens": number;
+      "outline.maxInputChars": number;
       "outline.preview": boolean;
       "outline.backup": boolean;
       "outline.debug": boolean;

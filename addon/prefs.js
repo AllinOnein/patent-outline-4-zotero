@@ -1,6 +1,9 @@
 pref("ai.baseUrl", "https://api.openai.com/v1");
 pref("ai.apiKey", "");
 pref("ai.model", "gpt-4o-mini");
+pref("ai.disableThinking", true);
+pref("ai.maxTokens", 8192);
+pref("outline.maxInputChars", 60000);
 pref("outline.preview", true);
 pref("outline.backup", true);
 pref("outline.debug", false);

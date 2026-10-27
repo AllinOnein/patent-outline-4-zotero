@@ -1,5 +1,5 @@
 import { config } from "../../package.json";
-import { getString } from "../utils/locale";
+import { getString, getLocaleID } from "../utils/locale";
 import { discoverAttachments } from "./attachmentFinder";
 import { readContentList } from "./zipReader";
 import { extractContent } from "./contentExtractor";
@@ -21,8 +21,27 @@ import {
   saveWriteLog,
   saveModifiedPdf,
 } from "../utils/debug";
+import { closeOpenReaders, reopenReaders } from "./readerSync";
+import { ICON_MENU_DARK, ICON_MENU_LIGHT } from "../utils/icons";
 
 const PREFS_PREFIX = config.prefsPrefix;
+
+/** Safe logger: the toolkit is undefined when this module runs in unit tests. */
+function debugLog(...args: any[]): void {
+  if (typeof ztoolkit !== "undefined") {
+    ztoolkit.log(...args);
+  }
+}
+
+/** Menu ID is plugin-scoped so it can be unregistered on shutdown. */
+const MENU_ID = `${config.addonRef}-generate-outline`;
+
+/**
+ * Key returned by `registerMenu()`. Zotero namespaces it as
+ * `<pluginID>-<menuID>` (CSS-escaped), and `unregisterMenu()` expects that
+ * namespaced key rather than the bare menuID.
+ */
+let registeredMenuKey: string | null = null;
 
 function getPref(key: string): any {
   try {
@@ -32,36 +51,172 @@ function getPref(key: string): any {
   }
 }
 
+/**
+ * Register the "generate outline" entry in the item context menu.
+ *
+ * Zotero 8 introduced `Zotero.MenuManager`; Zotero 10 (re)builds these menus
+ * itself and removes a plugin's menu DOM on shutdown, so the legacy DOM
+ * insertion used by `ztoolkit.Menu` (removed in zotero-plugin-toolkit 6) is no
+ * longer needed.
+ */
 export function registerPatentMenu(): void {
-  const menuIcon = `chrome://${config.addonRef}/content/icons/favicon@0.5x.png`;
+  const menuManager = (Zotero as any).MenuManager;
+  if (!menuManager?.registerMenu) {
+    debugLog(
+      "[menu] Zotero.MenuManager is unavailable — Patent Outline Generator requires Zotero 8 or later.",
+    );
+    return;
+  }
 
-  ztoolkit.Menu.register("item", {
-    tag: "menuitem",
-    id: `zotero-itemmenu-${config.addonRef}-generate`,
-    label: getString("menuitem-generate-outline"),
-    commandListener: async () => {
-      await handleGenerateOutline();
-    },
-    icon: menuIcon,
-  });
+  // Zotero keeps the registration from the previous plugin instance when the
+  // plugin is updated without a full restart. Registering the same menuID again
+  // is rejected, which would leave the stale menu (and its old icon) in place,
+  // so clear anything registered under our ID first.
+  clearStaleRegistrations(menuManager);
+
+  const key = menuManager.registerMenu({
+    menuID: MENU_ID,
+    pluginID: config.addonID,
+    target: "main/library/item",
+    menus: [
+      {
+        menuType: "menuitem",
+        l10nID: getLocaleID("menuitem-generate-outline"),
+        onShowing: (_event: Event, context: any) => {
+          // Zotero's `icon` option only sets `list-style-image`, which does not
+          // paint in the item context menu on some builds. Drawing the icon as
+          // a background image on the item works everywhere.
+          ensureMenuIcon(context?.menuElem);
+
+          const items: Zotero.Item[] = context?.items ?? [];
+          // Nothing to do for attachments, notes or annotations on their own
+          context?.setVisible?.(items.some((item) => item.isRegularItem()));
+        },
+        onCommand: (_event: Event, context: any) => {
+          const items: Zotero.Item[] = context?.items?.length
+            ? context.items
+            : getSelectedItems();
+          void handleGenerateOutline(items);
+        },
+      },
+    ],
+  }) as string | false;
+
+  if (!key) {
+    debugLog("[menu] failed to register the item context menu");
+    return;
+  }
+  registeredMenuKey = key;
+  Zotero.debug(`[${config.addonName}] Item context menu registered: ${key}`);
 }
 
-async function handleGenerateOutline(): Promise<void> {
+const MENU_ICON_SIZE = 16;
+const MENU_ICON_INSET = 8;
+const MENU_ICON_PADDING = MENU_ICON_INSET + MENU_ICON_SIZE + 6;
+
+/**
+ * Paint the icon on the menu item itself.
+ *
+ * `Zotero.MenuManager`'s `icon` option ends up as a `list-style-image` on the
+ * item, which stays blank in the item context menu on some Zotero/Windows
+ * builds. A background image is painted by the element directly, so it does not
+ * depend on that rule, and a data URL keeps it independent of chrome:// paths.
+ */
+export function ensureMenuIcon(menuElem: any): void {
+  if (!menuElem?.style) return;
+
+  try {
+    const win = menuElem.ownerDocument?.defaultView;
+    const dark = Boolean(
+      win?.matchMedia?.("(prefers-color-scheme: dark)")?.matches,
+    );
+    const icon = dark ? ICON_MENU_DARK : ICON_MENU_LIGHT;
+
+    menuElem.style.backgroundImage = `url("${icon}")`;
+    menuElem.style.backgroundRepeat = "no-repeat";
+    menuElem.style.backgroundPosition = `${MENU_ICON_INSET}px center`;
+    menuElem.style.backgroundSize = `${MENU_ICON_SIZE}px ${MENU_ICON_SIZE}px`;
+    menuElem.style.paddingLeft = `${MENU_ICON_PADDING}px`;
+  } catch (err) {
+    debugLog("[menu] failed to apply the menu icon", err);
+  }
+}
+
+/**
+ * Drop menu registrations left behind by an earlier instance of this plugin.
+ * Their cache keys are namespaced (`<pluginID>-<menuID>`), which is also what
+ * `unregisterMenu()` expects, so the stored keys are used as-is.
+ */
+function clearStaleRegistrations(menuManager: any): void {
+  try {
+    const cache = menuManager?._menuManager?._optionsCache;
+    if (!cache) return;
+
+    for (const key of Object.keys(cache)) {
+      const option = cache[key];
+      if (!option || option.pluginID !== config.addonID) continue;
+      if (!String(option.menuID ?? "").includes(MENU_ID)) continue;
+
+      menuManager.unregisterMenu(key);
+      debugLog(`[menu] removed stale registration: ${key}`);
+    }
+  } catch (err) {
+    debugLog("[menu] failed to clear stale registrations", err);
+  }
+}
+
+/** Remove the context menu entry (called on shutdown). */
+export function unregisterPatentMenu(): void {
+  try {
+    (Zotero as any).MenuManager?.unregisterMenu?.(registeredMenuKey ?? MENU_ID);
+  } catch (err) {
+    debugLog("[menu] failed to unregister menu", err);
+  }
+  registeredMenuKey = null;
+}
+
+/** Currently selected items in the active main window (empty if unavailable). */
+function getSelectedItems(): Zotero.Item[] {
+  try {
+    return Zotero.getActiveZoteroPane()?.getSelectedItems() ?? [];
+  } catch (err) {
+    debugLog("[menu] failed to read selection", err);
+    return [];
+  }
+}
+
+async function handleGenerateOutline(
+  selectedItems?: Zotero.Item[],
+): Promise<void> {
   // ── Step 0: Validate selection ──────────────────────────────────
-  const zoteroPane = ztoolkit.getGlobal("ZoteroPane");
-  const items: Zotero.Item[] = zoteroPane.getSelectedItems();
+  const items: Zotero.Item[] = selectedItems?.length
+    ? selectedItems
+    : getSelectedItems();
 
   if (items.length === 0) {
     showError(getString("error-no-item-selected"), 5000);
     return;
   }
 
-  const item = items[0];
+  const regularItems = items.filter((selected) => selected.isRegularItem());
 
-  if (item.isAttachment()) {
-    showError(getString("error-is-attachment"), 5000);
+  if (regularItems.length === 0) {
+    const only = items[0];
+    showError(
+      only.isAttachment()
+        ? getString("error-is-attachment")
+        : getString("error-no-item-selected"),
+      5000,
+    );
     return;
   }
+
+  if (regularItems.length > 1) {
+    showError(getString("error-multiple-items"), 8000);
+    return;
+  }
+
+  const item = regularItems[0];
 
   // Validate AI config early
   const aiConfig = readAIConfig();
@@ -75,7 +230,11 @@ async function handleGenerateOutline(): Promise<void> {
     closeOnClick: true,
     closeTime: -1,
   })
-    .createLine({ text: getString("progress-discovering"), type: "default", progress: 10 })
+    .createLine({
+      text: getString("progress-discovering"),
+      type: "default",
+      progress: 10,
+    })
     .show();
 
   let discovery: Awaited<ReturnType<typeof discoverAttachments>>;
@@ -83,7 +242,7 @@ async function handleGenerateOutline(): Promise<void> {
     discovery = await discoverAttachments(item);
   } catch (err) {
     progress.close();
-    ztoolkit.log(err);
+    debugLog(err);
     showError(getString("error-discovery-failed"), 5000);
     return;
   }
@@ -128,16 +287,16 @@ async function handleGenerateOutline(): Promise<void> {
   try {
     outlineResult = await buildOutline(flatContent, aiConfig, item.id);
   } catch (err) {
-    ztoolkit.log(err);
+    debugLog(err);
     progress.close();
-    const msg = (err as Error).message;
-    if (msg.includes("timeout") || msg.includes("timed out")) {
-      showError(getString("error-ai-timeout"), 15000);
-    } else if (msg.includes("API key") || msg.includes("401") || msg.includes("403")) {
-      showError(getString("error-ai-invalidkey"), 15000);
-    } else {
-      showError(getString("error-ai-failed"), 15000);
+    const msg = (err as Error).message || String(err);
+    let title = getString("error-ai-failed");
+    if (/timeout|timed out/i.test(msg)) {
+      title = getString("error-ai-timeout");
+    } else if (/API key|401|403/i.test(msg)) {
+      title = getString("error-ai-invalidkey");
     }
+    showErrorDetail(title, msg, 20000);
     return;
   }
 
@@ -157,7 +316,7 @@ async function handleGenerateOutline(): Promise<void> {
 
   const validationError = validateTree(tree, 9999);
   if (validationError) {
-    ztoolkit.log("[tree] validation:", validationError);
+    debugLog("[tree] validation:", validationError);
   }
 
   progress.changeLine({
@@ -177,19 +336,29 @@ async function handleGenerateOutline(): Promise<void> {
         closeOnClick: true,
         closeTime: 3000,
       })
-        .createLine({ text: getString("result-cancelled"), type: "default", progress: 100 })
+        .createLine({
+          text: getString("result-cancelled"),
+          type: "default",
+          progress: 100,
+        })
         .show();
       return;
     }
 
     if (action === "export") {
-      const path = shouldSaveDebug ? await saveBookmarkTree(item.id, tree) : null;
+      const path = shouldSaveDebug
+        ? await saveBookmarkTree(item.id, tree)
+        : null;
       if (path) {
         new ztoolkit.ProgressWindow(config.addonName, {
           closeOnClick: true,
           closeTime: 5000,
         })
-          .createLine({ text: `${getString("result-exported")}: ${path}`, type: "default", progress: 100 })
+          .createLine({
+            text: `${getString("result-exported")}: ${path}`,
+            type: "default",
+            progress: 100,
+          })
           .show();
       }
       return;
@@ -201,15 +370,28 @@ async function handleGenerateOutline(): Promise<void> {
     closeOnClick: true,
     closeTime: -1,
   })
-    .createLine({ text: "Writing outline to PDF...", type: "default", progress: 30 })
+    .createLine({
+      text: "Writing outline to PDF...",
+      type: "default",
+      progress: 30,
+    })
     .show();
+
+  // The reader holds the PDF file open while it is displayed, and would keep
+  // showing the outline loaded at open time. Close those tabs and restore them
+  // once the new file is on disk.
+  const pdfItemID = discovery.pdfItem.id;
+  const readerSnapshots = closeOpenReaders(pdfItemID);
 
   try {
     const shouldBackup = getPref("outline.backup");
 
     // 6a. Backup (if enabled)
     if (shouldBackup !== false) {
-      writeProgress.changeLine({ text: "Backing up original PDF...", progress: 40 });
+      writeProgress.changeLine({
+        text: "Backing up original PDF...",
+        progress: 40,
+      });
       await createBackup(discovery.pdfPath);
     }
 
@@ -244,7 +426,10 @@ async function handleGenerateOutline(): Promise<void> {
 
     // 6e. Verify
     if (shouldBackup !== false) {
-      const verified = await verifyWrittenPdf(discovery.pdfPath, result.pageCount);
+      const verified = await verifyWrittenPdf(
+        discovery.pdfPath,
+        result.pageCount,
+      );
       if (!verified) {
         await restoreBackup(discovery.pdfPath);
         if (shouldSaveDebug) {
@@ -297,6 +482,14 @@ async function handleGenerateOutline(): Promise<void> {
         progress: 100,
       });
 
+    if (outlineResult.stats?.truncated) {
+      resultWin.createLine({
+        text: `  ${getString("result-downsampled", { args: { selected: outlineResult.stats.selected, total: outlineResult.stats.total } })}`,
+        type: "default",
+        progress: 100,
+      });
+    }
+
     const maxPreview = Math.min(tree.length, 3);
     for (let i = 0; i < maxPreview; i++) {
       resultWin.createLine({
@@ -308,7 +501,7 @@ async function handleGenerateOutline(): Promise<void> {
 
     resultWin.show();
   } catch (err) {
-    ztoolkit.log(err);
+    debugLog(err);
     const shouldBackup = getPref("outline.backup");
     try {
       if (shouldBackup !== false) {
@@ -328,6 +521,8 @@ async function handleGenerateOutline(): Promise<void> {
     }
     writeProgress.close();
     showError(getString("error-unexpected"), 15000);
+  } finally {
+    await reopenReaders(pdfItemID, readerSnapshots);
   }
 }
 
@@ -340,6 +535,28 @@ function showError(text: string, closeTime: number): void {
   })
     .createLine({ text, type: "error", progress: 100 })
     .show();
+}
+
+/** Error toast that also shows the underlying reason (API status, parse error, …). */
+function showErrorDetail(
+  title: string,
+  detail: string,
+  closeTime: number,
+): void {
+  const win = new ztoolkit.ProgressWindow(config.addonName, {
+    closeOnClick: true,
+    closeTime,
+  }).createLine({ text: title, type: "error", progress: 100 });
+
+  if (detail) {
+    win.createLine({
+      text: detail.length > 260 ? `${detail.slice(0, 260)}…` : detail,
+      type: "default",
+      progress: 100,
+    });
+  }
+
+  win.show();
 }
 
 async function readFileBytes(filePath: string): Promise<Uint8Array> {

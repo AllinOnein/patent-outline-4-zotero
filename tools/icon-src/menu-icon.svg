@@ -1,0 +1,7 @@
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <!-- Context-menu icon, light theme: outlined page + blue bookmark tag.
+       All geometry sits on integer pixels so the 1px strokes stay crisp. -->
+  <path fill="#6B6B6B" fill-rule="evenodd" d="M2 1h12v14H2V1Zm1 1v12h10V2H3Z"/>
+  <path fill="#6B6B6B" d="M4 5h3v1H4V5Zm0 3h8v1H4V8Zm0 3h8v1H4v-1Z"/>
+  <path fill="#2F6FEB" d="M8 1h4v6L10 5.6 8 7V1Z"/>
+</svg>

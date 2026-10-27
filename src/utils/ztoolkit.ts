@@ -1,15 +1,40 @@
-import { ZoteroToolkit } from "zotero-plugin-toolkit";
+import {
+  BasicTool,
+  ProgressWindowHelper,
+  UITool,
+  unregister,
+} from "zotero-plugin-toolkit";
 import { config } from "../../package.json";
+import { ICON_APP } from "./icons";
 
 export { createZToolkit };
 
+/**
+ * Minimal toolkit composed of the tools this plugin actually uses.
+ *
+ * `ZoteroToolkit` (the all-in-one helper) is only exported from the
+ * `zotero-plugin-toolkit/ztoolkit` subpath, which ships without type
+ * declarations. Composing the tools we need keeps the bundle small and typed.
+ *
+ * Note: the toolkit's `Menu` helper was removed in zotero-plugin-toolkit 6 —
+ * context menus are registered through `Zotero.MenuManager` instead (Zotero 8+).
+ */
+class PatentToolkit extends BasicTool {
+  UI: UITool;
+  ProgressWindow = ProgressWindowHelper;
+
+  constructor() {
+    super();
+    this.UI = new UITool(this);
+  }
+
+  unregisterAll() {
+    unregister(this);
+  }
+}
+
 function createZToolkit() {
-  const _ztoolkit = new ZoteroToolkit();
-  /**
-   * Alternatively, import toolkit modules you use to minify the plugin size.
-   * You can add the modules under the `MyToolkit` class below and uncomment the following line.
-   */
-  // const _ztoolkit = new MyToolkit();
+  const _ztoolkit = new PatentToolkit();
   initZToolkit(_ztoolkit);
   return _ztoolkit;
 }
@@ -25,24 +50,5 @@ function initZToolkit(_ztoolkit: ReturnType<typeof createZToolkit>) {
   // _ztoolkit.basicOptions.debug.disableDebugBridgePassword =
   //   __env__ === "development";
   _ztoolkit.basicOptions.api.pluginID = config.addonID;
-  _ztoolkit.ProgressWindow.setIconURI(
-    "default",
-    `chrome://${config.addonRef}/content/icons/favicon.png`,
-  );
-}
-
-import { BasicTool, unregister } from "zotero-plugin-toolkit";
-import { UITool } from "zotero-plugin-toolkit";
-
-class MyToolkit extends BasicTool {
-  UI: UITool;
-
-  constructor() {
-    super();
-    this.UI = new UITool(this);
-  }
-
-  unregisterAll() {
-    unregister(this);
-  }
+  _ztoolkit.ProgressWindow.setIconURI("default", ICON_APP);
 }

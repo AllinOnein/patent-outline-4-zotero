@@ -27,9 +27,17 @@ async function startup({ id, version, resourceURI, rootURI }, reason) {
   const ctx = { rootURI };
   ctx._globalThis = ctx;
 
-  Services.scriptloader.loadSubScript(
-    `${rootURI}/content/scripts/__addonRef__.js`,
-    ctx,
+  // Zotero 10 / Firefox 140: the script loader refuses jar:file: URLs unless
+  // `allowUnsafeURL` is set (Mozilla bug 1974213), and a cached copy of the
+  // previous version would otherwise keep running after an in-place update.
+  // This mirrors how Zotero itself loads plugin bootstrap.js.
+  Services.scriptloader.loadSubScriptWithOptions(
+    `${rootURI}content/scripts/__addonRef__.js`,
+    {
+      target: ctx,
+      ignoreCache: true,
+      allowUnsafeURL: true,
+    },
   );
   await Zotero.__addonInstance__.hooks.onStartup();
 }

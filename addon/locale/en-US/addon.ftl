@@ -1,9 +1,11 @@
 startup-begin = Patent Outline Generator is loading
 startup-finish = Patent Outline Generator is ready
 menuitem-generate-outline = Generate Patent Outline
+    .label = Generate Patent Outline
 prefs-title = Patent Outline Generator
 error-no-item-selected = No item selected — please select a patent entry.
 error-is-attachment = Please select a parent item, not an attachment.
+error-multiple-items = Please select a single item — batch processing is not supported yet.
 error-no-pdf = PDF attachment not found for this item.
 error-no-zip = MinerU analysis package not found for this item.
 error-discovery-failed = Failed to read attachment information.
@@ -21,3 +23,4 @@ result-zip-found = MinerU package found
 result-written = Written { $count } bookmarks to PDF
 result-cancelled = Outline generation cancelled
 result-exported = Exported bookmark tree
+result-downsampled = Long document — input reduced to { $selected }/{ $total } items

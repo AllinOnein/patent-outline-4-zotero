@@ -33,7 +33,9 @@ export default defineConfig({
           __env__: `"${process.env.NODE_ENV}"`,
         },
         bundle: true,
-        target: "firefox115",
+        // Zotero 8/9/10 are all based on Firefox 115+
+        // (Zotero 9 and 10 use Firefox 140 ESR)
+        target: "firefox140",
         outfile: `.scaffold/build/addon/content/scripts/${pkg.config.addonRef}.js`,
       },
     ],

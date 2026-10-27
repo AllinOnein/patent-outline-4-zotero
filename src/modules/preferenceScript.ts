@@ -60,11 +60,11 @@ function bindTestButton(_window: Window) {
           content: "Respond with exactly: OK",
         },
       ]);
-      if (response.includes("OK")) {
+      if (response.content.includes("OK")) {
         resultLabel.textContent = "Connection successful!";
         resultLabel.style.color = "green";
       } else {
-        resultLabel.textContent = `Unexpected response: ${response.slice(0, 100)}`;
+        resultLabel.textContent = `Unexpected response: ${response.content.slice(0, 100)}`;
         resultLabel.style.color = "orange";
       }
     } catch (err) {

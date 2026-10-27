@@ -1,9 +1,11 @@
 startup-begin = 专利大纲生成器加载中
 startup-finish = 专利大纲生成器已就绪
 menuitem-generate-outline = 生成专利大纲
+    .label = 生成专利大纲
 prefs-title = 专利大纲生成器
 error-no-item-selected = 未选中条目——请选择一个专利条目
 error-is-attachment = 请选择父条目，而不是附件
+error-multiple-items = 请只选择一个条目——暂不支持一次处理多个条目
 error-no-pdf = 未找到该条目的PDF附件
 error-no-zip = 未找到该条目的MinerU解析包
 error-discovery-failed = 读取附件信息失败
@@ -21,3 +23,4 @@ result-zip-found = 已找到MinerU包
 result-written = 已写入 { $count } 个书签到PDF
 result-cancelled = 大纲生成已取消
 result-exported = 书签树已导出
+result-downsampled = 文档较长，输入已精简为 { $selected }/{ $total } 条
